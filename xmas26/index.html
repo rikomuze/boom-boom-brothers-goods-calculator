@@ -110,9 +110,10 @@ button,input,a{touch-action:manipulation}
 <div class="modal" id="modal" hidden>
   <div class="sheet" role="dialog" aria-label="結果画像">
     <img id="shotImg" alt="計算結果の画像">
-    <p>保存できない場合は、画像を長押しして保存してください。</p>
+    <p id="hint">「共有・保存」から「画像を保存」を選べます。画像の長押しでも保存できます。</p>
     <div class="acts">
-      <a class="copy" id="dl" download="bbbros-xmas26.png" href="#">ダウンロード</a>
+      <button class="copy" id="share" type="button">共有・保存</button>
+      <a class="copy" id="dl" download="bbbros-xmas26.png" href="#" hidden>ダウンロード</a>
       <button class="copy ghost" id="close" type="button">閉じる</button>
     </div>
   </div>
@@ -250,12 +251,27 @@ async function makeShot(){
   c.fillStyle="#ffffff";c.font=`800 72px ${DISP}`;c.textAlign="right";c.fillText(yen(total+sh),P+TW-32,y+118);c.textAlign="left";
   y+=190;
   c.fillStyle="#5d6e66";c.font=`400 22px ${BODY}`;c.fillText("販売開始 10/16(金) 20:00 ・ 価格は税込",P,y+20);
-  return cv.toDataURL("image/png");
+  return cv;
 }
 const modal=document.getElementById("modal");
+let shotFile=null;
+document.getElementById("share").addEventListener("click",async()=>{
+  if(!shotFile)return;
+  try{await navigator.share({files:[shotFile],title:"BBBros X'mas26 お買い物リスト"});}
+  catch(err){if(err&&err.name!=="AbortError"){document.getElementById("share").hidden=true;document.getElementById("dl").hidden=false;}}
+});
 document.getElementById("shot").addEventListener("click",async e=>{
   const btn=e.currentTarget;btn.disabled=true;btn.textContent="作成中…";
-  try{const url=await makeShot();document.getElementById("shotImg").src=url;document.getElementById("dl").href=url;modal.hidden=false;}
+  try{
+    const cv=await makeShot(),url=cv.toDataURL("image/png");
+    document.getElementById("shotImg").src=url;document.getElementById("dl").href=url;
+    const blob=await new Promise(r=>cv.toBlob(r,"image/png"));
+    shotFile=blob?new File([blob],"bbbros-xmas26.png",{type:"image/png"}):null;
+    const canShare=!!(shotFile&&navigator.canShare&&navigator.canShare({files:[shotFile]}));
+    document.getElementById("share").hidden=!canShare;document.getElementById("dl").hidden=canShare;
+    document.getElementById("hint").textContent=canShare?"「共有・保存」から「画像を保存」を選べます。画像の長押しでも保存できます。":"保存できない場合は、画像を長押しして保存してください。";
+    modal.hidden=false;
+  }
   catch(err){alert("画像を作れませんでした。もう一度お試しください。");}
   btn.disabled=false;btn.textContent="画像で保存";
 });
